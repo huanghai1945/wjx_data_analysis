@@ -1,5 +1,5 @@
 # Python Version 3.8
-import os,sys
+import os, sys
 import sqlite3
 
 from openpyxl.styles import colors
@@ -27,6 +27,7 @@ def createDataBase():
     cn.commit()
     cn.close()
     print("创建数据库answer_data.db以及TB_answer表完成！")
+
 
 # 清空数据
 def delteData():
@@ -67,51 +68,72 @@ def importExcel():
     print("导入数据成功！")
 
 
-
-
-
 # 使用上面的两个函数
 def importData(path):
     # createDataBase()
     database = sqlite3.connect("answer_data.db")
     importExcel(path, database)
 
+
 def query_all(para):
-   conn = sqlite3.connect('answer_data.db')
-   c = conn.cursor()
-   print("\nThe %s information is as follows:" % para)
+    conn = sqlite3.connect('answer_data.db')
+    c = conn.cursor()
+    print("\nThe %s information is as follows:" % para)
 
-   cursor = c.execute("SELECT batchno, answer_seqno, custom_id, answer_time, "
-                      "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer")
-   for row in cursor:
-       print(row)
-      # print("CODE = ", row[0])
-      # print("NAME = ", row[1])
-      # print("Chinese = ", row[2])
-      # print("Mathematic = ", row[3])
-      # print("English = ", row[4], "\n")
+    cursor = c.execute("SELECT batchno, answer_seqno, custom_id, answer_time, "
+                       "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer")
+    for row in cursor:
+        print(row)
+    # print("CODE = ", row[0])
+    # print("NAME = ", row[1])
+    # print("Chinese = ", row[2])
+    # print("Mathematic = ", row[3])
+    # print("English = ", row[4], "\n")
 
-   print("\n====END====")
-   conn.close()
+    print("\n====END====")
+    conn.close()
+
 
 def query_basic_info():
     conn = sqlite3.connect('answer_data.db')
     c = conn.cursor()
-    cursor = c.execute("")
+    cursor = c.execute("SELECT row_number() over(order BY t.batchno) `no`, batchno FROM TB_answer t GROUP BY batchno;")
+    print("\n========答题次数统计========")
+    print("| 序号 | 答卷批次 |")
     for row in cursor:
         print(row)
+
+    cursor = c.execute("SELECT batchno,"
+                       "case party_branch WHEN '1' THEN '第一党支部'"
+                       "WHEN '2' THEN '第二党支部'"
+                       "WHEN '3' THEN '第三党支部'"
+                       "WHEN '4' THEN '第四党支部'"
+                       "WHEN '5' THEN '第五党支部'"
+                       "WHEN '6' THEN '安金所党支部' end,"
+                       "count(DISTINCT(custom_id)) AS num from TB_answer GROUP BY batchno,party_branch")
+    print("\n========答题党支部情况数据统计========")
+    print("| 答卷批次 | 党支部 | 参加人数 |")
+    for row in cursor:
+        print(row)
+
+    is_export = input('是否导出该数据为excel格式？ Y(y) / N(n):')
+    if is_export == 'Y' or is_export == 'y':
+        print("导出数据中......")
+    elif is_export == 'N' or is_export == 'n':
+        __name__
+    else:
+        print('输入错误，请重新输入：\n')
+
     conn.close()
 
 
-
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
     while True:
         print('\n                 欢迎使用问卷星数据统计程序\n')
         print('===================================================================')
         print('*  1.导入数据    *')
         print('*  2.查询数据    *')
+        print('*  3.查询基本统计信息    *')
         print('*  99.清空数据                                                     *')
         print('*  0.退出                                                         *')
         print('*                                                                 *')
@@ -131,12 +153,13 @@ if __name__=="__main__":
             query_all(1)
             os.system("pause")
             # sys.exit()
+        if cmd_no == '3':
+            query_basic_info()
+            os.system("pause")
+            # sys.exit()
         if cmd_no == '99':
             delteData()
             os.system("pause")
-
-
-
         elif cmd_no == '0':
             break
         else:
