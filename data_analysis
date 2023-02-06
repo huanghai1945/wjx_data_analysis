@@ -1,0 +1,166 @@
+# Python Version 3.8
+import os,sys
+import sqlite3
+
+from openpyxl.styles import colors
+from openpyxl.styles import Font, Color, PatternFill, Alignment
+from openpyxl import load_workbook
+
+
+# 初始化建立数据库
+def createDataBase():
+    cn = sqlite3.connect('answer_data.db')
+
+    cn.execute('''CREATE TABLE IF NOT EXISTS TB_answer
+         (ID INTEGER PRIMARY KEY AUTOINCREMENT,
+         batchno  varchar(32),  --导入的答卷名称
+         answer_seqno varchar(32),  --答题序号
+         custom_id varchar(32),     --用户ID
+         answer_time varchar(32),   --提交答卷时间
+         answer_time_consume INTEGER, --所用时间 单位秒
+         score INTEGER,               --总分
+         custom_name varchar(32),     --您的姓名：
+         party_branch varchar(32),    --所在支部：1-5为第一到第五党支部，6为安金所党支部
+         custom_type varchar(32)      --人员类别：1党员，2预备党员，3发展对象，4入党积极丰子，5入党申请人，6群众
+         );''')
+
+    cn.commit()
+    cn.close()
+    print("创建数据库answer_data.db以及TB_answer表完成！")
+
+# 清空数据
+def delteData():
+    cn = sqlite3.connect('answer_data.db')
+    cn.execute("delete from TB_answer")
+    cn.commit()
+    cn.close()
+    print("清空数据完成！")
+
+
+# 解析excel文件并将其存储到sqlite
+def importExcel():
+    # # 读取
+    # workbook = xlrd.open_workbook(filename)
+    # # 获取sheet
+    # sheet_name = workbook.sheet_names()[0]
+    # sheet = workbook.sheet_by_name(sheet_name)
+
+    FileName = "./static/202301.xlsx"
+    wb = load_workbook(FileName)
+    ws = wb.worksheets[0]
+    rows = ws.max_row  # excel行数
+    column = ws.max_column  # excel列数
+    cn = sqlite3.connect('answer_data.db')
+
+    for i in range(2, rows + 1):
+        if ws.cell(i, 1).value is not None:
+            sql = "insert into TB_answer (batchno,answer_seqno,custom_id,answer_time," \
+                  "answer_time_consume,score,custom_name,party_branch,custom_type)" \
+                  " values ('%s','%s','%s','%s','%s','%s','%s','%s','%s')" \
+                  % ('202301', ws.cell(i, 1).value, ws.cell(i, 2).value,
+                     ws.cell(i, 3).value, ws.cell(i, 4).value.replace('秒', ''), ws.cell(i, 8).value,
+                     ws.cell(i, 9).value, ws.cell(i, 10).value, ws.cell(i, 11).value)
+            # print(sql)
+            cn.execute(sql)
+    cn.commit()
+    cn.close
+    print("导入数据成功！")
+
+
+
+
+
+# 使用上面的两个函数
+def importData(path):
+    # createDataBase()
+    database = sqlite3.connect("answer_data.db")
+    importExcel(path, database)
+
+def query_all(para):
+   conn = sqlite3.connect('answer_data.db')
+   c = conn.cursor()
+   print("\nThe %s information is as follows:" % para)
+
+   cursor = c.execute("SELECT batchno, answer_seqno, custom_id, answer_time, "
+                      "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer")
+   for row in cursor:
+       print(row)
+      # print("CODE = ", row[0])
+      # print("NAME = ", row[1])
+      # print("Chinese = ", row[2])
+      # print("Mathematic = ", row[3])
+      # print("English = ", row[4], "\n")
+
+   print("\n====END====")
+   conn.close()
+
+def query_basic_info():
+    conn = sqlite3.connect('answer_data.db')
+    c = conn.cursor()
+    cursor = c.execute("")
+    for row in cursor:
+        print(row)
+    conn.close()
+
+
+
+
+
+if __name__=="__main__":
+    while True:
+        print('\n                 欢迎使用问卷星数据统计程序\n')
+        print('===================================================================')
+        print('*  1.导入数据    *')
+        print('*  2.查询数据    *')
+        print('*  99.清空数据                                                     *')
+        print('*  0.退出                                                         *')
+        print('*                                                                 *')
+        print('*                                             Version:1.0         *')
+        print('*                                        Create by Huanghaiyang   *')
+        print('===================================================================')
+        print('\n')
+        print('请输入命令编号')
+
+        cmd_no = input('Please input command No:')
+
+        if cmd_no == '1':
+            importExcel()
+            os.system("pause")
+            # sys.exit()
+        if cmd_no == '2':
+            query_all(1)
+            os.system("pause")
+            # sys.exit()
+        if cmd_no == '99':
+            delteData()
+            os.system("pause")
+
+
+
+        elif cmd_no == '0':
+            break
+        else:
+            print('输入错误，请重新输入：\n')
+
+'''
+#显示学生名单里的信息
+def show( filename):
+   conn = sqlite3.connect( filename)
+   c = conn.cursor()
+   print("\nThe %s information is as follows:" % filename)
+
+   cursor = c.execute("SELECT code, name, Chinese, Mathematic, English from TB_STUDENTS")
+   for row in cursor:
+      print("CODE = ", row[0])
+      print("NAME = ", row[1])
+      print("Chinese = ", row[2])
+      print("Mathematic = ", row[3])
+      print("English = ", row[4], "\n")
+
+   print("\n\t\tEND")
+   conn.close()
+
+path = input("Please enter the excel file's name:")
+importData(path)
+show("students.db")
+'''
