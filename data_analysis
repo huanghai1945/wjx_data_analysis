@@ -1,7 +1,8 @@
 # Python Version 3.8
-import os, sys
+import os, sys , time
 import sqlite3
 
+import openpyxl
 from openpyxl.styles import colors
 from openpyxl.styles import Font, Color, PatternFill, Alignment
 from openpyxl import load_workbook
@@ -119,6 +120,10 @@ def query_basic_info():
     is_export = input('是否导出该数据为excel格式？ Y(y) / N(n):')
     if is_export == 'Y' or is_export == 'y':
         print("导出数据中......")
+        time_stamp = time.time()
+        wb = openpyxl.Workbook()
+        wb.save("./static/export_"+str(time_stamp)+".xlsx")
+        print("导出数据中完成！")
     elif is_export == 'N' or is_export == 'n':
         __name__
     else:
