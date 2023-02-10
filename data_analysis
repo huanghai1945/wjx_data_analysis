@@ -7,10 +7,14 @@ from openpyxl.styles import colors
 from openpyxl.styles import Font, Color, PatternFill, Alignment
 from openpyxl import load_workbook
 
+# 数据库文件的绝对路径，暂时未用到
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(BASE_DIR, "answer_data.db")
+
 
 # 初始化建立数据库
 def createDataBase():
-    cn = sqlite3.connect('answer_data.db')
+    cn = sqlite3.connect("./answer_data.db")
 
     cn.execute('''CREATE TABLE IF NOT EXISTS TB_answer
          (ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,24 +36,24 @@ def createDataBase():
 
 # 清空数据
 def delteData():
-    cn = sqlite3.connect('answer_data.db')
+    cn = sqlite3.connect("./answer_data.db")
     cn.execute("delete from TB_answer")
     cn.commit()
     cn.close()
-    print("清空数据完成！")
+    print("清空数据完成！\n")
 
 
 # 解析excel文件并将其存储到sqlite
 def importExcel():
     # 获取目录中文件名，并判断是否为excel文件
-    file_names = os.listdir("import")
+    file_names = os.listdir("./import")
     for i in range(len(file_names)):
         file_type = file_names[i].split(".")[-1]
         if file_type not in ["xlsx", "xls"]:
             del file_names[i]  # file_names中删除非excel格式文件
 
     print("import文件夹发现如下excel文件：", file_names)
-    is_import = input("是否要导入如下excel文件? Y(y) / N(n):'")
+    is_import = input("是否要导入如下excel文件? Y(y) / N(n):")
     if is_import == 'Y' or is_import == 'y':
         print("导入数据中......")
         for filename in file_names:  # 遍历import文件，逐个导入数据库
@@ -58,7 +62,7 @@ def importExcel():
             ws = wb.worksheets[0]
             rows = ws.max_row  # excel行数
             column = ws.max_column  # excel列数
-            cn = sqlite3.connect('answer_data.db')
+            cn = sqlite3.connect("./answer_data.db")
 
             for i in range(2, rows + 1):
                 if ws.cell(i, 1).value is not None:
@@ -71,19 +75,40 @@ def importExcel():
                     # print(sql)
                     cn.execute(sql)
             cn.commit()
-            print("excel文件：", filename, "导入完成！")
+            print("excel文件：", filename, "导入完成！\n")
 
         cn.close
         print("导入数据成功！")
 
 
-def query_all(para):
-    conn = sqlite3.connect('answer_data.db')
-    c = conn.cursor()
-    print("\nThe %s information is as follows:" % para)
+# 查询原始答题数据
+def query_all():
+    batchno = input("请输入答题批次号 (不输入查全部)：")
+    party_branch = input("请输入党支部编号 (不输入查全部)\n"
+                         "1-5为第一到第五党支部，6为安金所党支部：")
 
-    cursor = c.execute("SELECT batchno, answer_seqno, custom_id, answer_time, "
-                       "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer")
+    if batchno == '' and party_branch == '':
+        sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
+              "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer"
+    if batchno and party_branch == '':
+        sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
+              "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer " \
+              "where batchno='%s'" % batchno
+    if batchno == '' and party_branch:
+        sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
+              "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer " \
+              "where party_branch='%s'" % party_branch
+    else:
+        sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
+              "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer " \
+              "where batchno='%s' and party_branch='%s'" % (batchno,party_branch)
+    print(sql)
+
+    conn = sqlite3.connect("./answer_data.db")
+    c = conn.cursor()
+    # print("\nThe %s information is as follows:" % para)
+
+    cursor = c.execute(sql)
     for row in cursor:
         print(row)
 
@@ -93,7 +118,7 @@ def query_all(para):
 
 # 查询答题排名统计
 def query_answer_rank():
-    conn = sqlite3.connect('answer_data.db')
+    conn = sqlite3.connect("./answer_data.db")
     c = conn.cursor()
     # 排名
     sql = "SELECT row_number() over(PARTITION BY batchno order BY batchno,answer_time_consume) `NO`," \
@@ -115,7 +140,8 @@ def query_answer_rank():
 
 
 def query_basic_info():
-    conn = sqlite3.connect('answer_data.db')
+    # print("./answer_data.db")
+    conn = sqlite3.connect("./answer_data.db")
     c = conn.cursor()
     cursor = c.execute("SELECT row_number() over(order BY t.batchno) `no`, batchno FROM TB_answer t GROUP BY batchno;")
     print("\n========答题次数统计========")
@@ -163,6 +189,7 @@ def query_basic_info():
     else:
         print('输入错误，请重新输入：\n')
 
+    print("\n====END====")
     conn.close()
 
 
@@ -171,7 +198,7 @@ if __name__ == "__main__":
         print('\n                 欢迎使用数据统计程序\n')
         print('===================================================================')
         print('*  1.导入数据                                                       *')
-        print('*  2.查询全部答题数据                                                *')
+        print('*  2.查询原始答题数据                                                *')
         print('*  3.查询总体统计信息                                                *')
         print('*  4.查询答题排名统计                                                *')
         print('*  99.清空数据                                                     *')
@@ -190,7 +217,7 @@ if __name__ == "__main__":
             os.system("pause")
             # sys.exit()
         if cmd_no == '2':
-            query_all(1)
+            query_all()
             os.system("pause")
             # sys.exit()
         if cmd_no == '3':
