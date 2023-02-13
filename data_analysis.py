@@ -1,4 +1,6 @@
 # Python Version 3.8
+# @Author huanghaiyang
+# Create by 2023-02-06
 import os, sys, time
 import sqlite3
 
@@ -8,8 +10,8 @@ from openpyxl.styles import Font, Color, PatternFill, Alignment
 from openpyxl import load_workbook
 
 # 数据库文件的绝对路径，暂时未用到
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(BASE_DIR, "answer_data.db")
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# db_path = os.path.join(BASE_DIR, "answer_data.db")
 
 
 # 初始化建立数据库
@@ -43,6 +45,38 @@ def delteData():
     print("清空数据完成！\n")
 
 
+# 数据库查询的结果导出为excel文件
+def exportExcel(sql, title, filename):
+    """
+    :param sql: 待执行的查询语句
+    :param title: 表头
+    :param filename: 保存文件名
+    :return:
+    """
+    print("导出数据中......")
+    time_stamp = time.time()
+    wb = openpyxl.Workbook()  # 新建excel文件
+    ws = wb.worksheets[0]
+    for i in range(len(title)):
+        ws.cell(1, i + 1).value = title[i]  # 将表头写入excel文件第一行
+
+    # 数据查询结果写入数据
+    # 温馨提示：openpyxl中首行和首列从1开始计算
+    conn = sqlite3.connect("./answer_data.db")
+    c = conn.cursor()
+    cursor = c.execute(sql)
+    rows = cursor.fetchall()
+    for i in range(len(rows)):
+        row = rows[i]
+        for j in range(len(row)):
+            ws.cell(i + 2, j + 1).value = row[j]
+    # 保存excel文件
+    excel_filename = "./export/export_" + filename + str(time_stamp) + ".xlsx"
+    wb.save(excel_filename)
+    conn.close()
+    print("导出数据中完成！excel文件：%s" % excel_filename)
+
+
 # 解析excel文件并将其存储到sqlite
 def importExcel():
     # 获取目录中文件名，并判断是否为excel文件
@@ -52,8 +86,10 @@ def importExcel():
         if file_type not in ["xlsx", "xls"]:
             del file_names[i]  # file_names中删除非excel格式文件
 
-    print("import文件夹发现如下excel文件：", file_names)
-    is_import = input("是否要导入如下excel文件? Y(y) / N(n):")
+    print("\nimport文件夹发现如下excel文件：")
+    for filename in file_names:
+        print("excel文件：%s" % filename)
+    is_import = input("\n是否要导入上述excel文件? Y(y) / N(n):")
     if is_import == 'Y' or is_import == 'y':
         print("导入数据中......")
         for filename in file_names:  # 遍历import文件，逐个导入数据库
@@ -61,7 +97,7 @@ def importExcel():
             wb = load_workbook("import/" + filename)
             ws = wb.worksheets[0]
             rows = ws.max_row  # excel行数
-            column = ws.max_column  # excel列数
+            # column = ws.max_column  # excel列数
             cn = sqlite3.connect("./answer_data.db")
 
             for i in range(2, rows + 1):
@@ -75,52 +111,60 @@ def importExcel():
                     # print(sql)
                     cn.execute(sql)
             cn.commit()
+            cn.close()
             print("excel文件：", filename, "导入完成！\n")
-
-        cn.close
         print("导入数据成功！")
 
 
 # 查询原始答题数据
 def query_all():
     batchno = input("请输入答题批次号 (不输入查全部)：")
-    party_branch = input("请输入党支部编号 (不输入查全部)\n"
-                         "1-5为第一到第五党支部，6为安金所党支部：")
+    party_branch = input("请输入党支部编号, \n"
+                         "1-5为第一到第五党支部，6为安金所党支部 (不输入查全部)：")
 
     if batchno == '' and party_branch == '':
         sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
               "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer"
-    if batchno and party_branch == '':
+    elif batchno and party_branch == '':
         sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
               "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer " \
               "where batchno='%s'" % batchno
-    if batchno == '' and party_branch:
+    elif batchno == '' and party_branch:
         sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
               "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer " \
               "where party_branch='%s'" % party_branch
     else:
         sql = "SELECT batchno, answer_seqno, custom_id, answer_time, " \
               "answer_time_consume,score,custom_name,party_branch,custom_type from TB_answer " \
-              "where batchno='%s' and party_branch='%s'" % (batchno,party_branch)
-    print(sql)
+              "where batchno='%s' and party_branch='%s'" % (batchno, party_branch)
+    # print(sql)
 
     conn = sqlite3.connect("./answer_data.db")
     c = conn.cursor()
-    # print("\nThe %s information is as follows:" % para)
-
+    print("\n========查询原始答题数据========")
+    print("| 答卷名称 | 答题序号 | 用户ID | 提交答卷时间 | 所用时间 单位秒 | 总分 | 您的姓名 | 所在支部 | 人员类别 |")
     cursor = c.execute(sql)
     for row in cursor:
         print(row)
-
     print("\n====END====")
     conn.close()
+
+    # 数据导出为excel文件
+    title = ['答卷名称', '答题序号', '用户ID', '提交答卷时间', '所用时间(单位秒)', '总分', '您的姓名', '所在支部', '人员类别']
+    is_export = input('是否导出该数据为excel格式？ Y(y) / N(n):')
+    if is_export == 'Y' or is_export == 'y':
+        exportExcel(sql, title, '原始答题数据')
+    elif is_export == 'N' or is_export == 'n':
+        pass
+    else:
+        print('输入错误，请重新输入：\n')
 
 
 # 查询答题排名统计
 def query_answer_rank():
     conn = sqlite3.connect("./answer_data.db")
     c = conn.cursor()
-    # 排名
+    # 排名sql
     sql = "SELECT row_number() over(PARTITION BY batchno order BY batchno,answer_time_consume) `NO`," \
           "batchno,custom_id,score,min(a1.answer_time_consume) AS answer_time_consume " \
           "FROM TB_answer a1 " \
@@ -134,13 +178,21 @@ def query_answer_rank():
     cursor = c.execute(sql)
     for row in cursor:
         print(row)
-
     print("\n====END====")
     conn.close()
 
+    # 数据导出为excel文件
+    title = ['排名', '答卷批次', '姓名', '分数', '耗时']
+    is_export = input('是否导出该数据为excel格式？ Y(y) / N(n):')
+    if is_export == 'Y' or is_export == 'y':
+        exportExcel(sql, title, '答题排名统计')
+    elif is_export == 'N' or is_export == 'n':
+        pass
+    else:
+        print('输入错误，请重新输入：\n')
+
 
 def query_basic_info():
-    # print("./answer_data.db")
     conn = sqlite3.connect("./answer_data.db")
     c = conn.cursor()
     cursor = c.execute("SELECT row_number() over(order BY t.batchno) `no`, batchno FROM TB_answer t GROUP BY batchno;")
@@ -159,53 +211,36 @@ def query_basic_info():
           "count(DISTINCT(custom_id)) AS num from TB_answer GROUP BY batchno,party_branch"
     cursor = c.execute(sql)
     print("\n========答题党支部情况数据统计========")
-    print("| 答卷批次 | 党支部 | 参加人数 |")
+    print("| 答卷名称 | 党支部 | 参加人数 |")
     for row in cursor:
         print(row)
+    print("\n====END====")
+    conn.close()
 
+    # 数据导出为excel文件
+    title = ['答卷名称', '党支部', '参加人数']
     is_export = input('是否导出该数据为excel格式？ Y(y) / N(n):')
     if is_export == 'Y' or is_export == 'y':
-        print("导出数据中......")
-        time_stamp = time.time()
-        wb = openpyxl.Workbook()  # 新建excel文件
-        ws = wb.worksheets[0]
-        ws.cell(1, 1).value = "答题批次"
-        ws.cell(1, 2).value = "党支部"
-        ws.cell(1, 3).value = "参与人数"
-
-        # 数据查询结果写入数据
-        # 温馨提示：openpyxl中首行和首列从1开始计算
-        cursor = c.execute(sql)
-        rows = cursor.fetchall()
-        for i in range(len(rows)):
-            row = rows[i]
-            for j in range(len(row)):
-                ws.cell(i + 2, j + 1).value = row[j]
-        # 保存excel文件
-        wb.save("./export/export_" + "答题党支部情况数据统计" + str(time_stamp) + ".xlsx")
-        print("导出数据中完成！")
+        exportExcel(sql, title, '答题党支部情况数据统计')
     elif is_export == 'N' or is_export == 'n':
         pass
     else:
         print('输入错误，请重新输入：\n')
 
-    print("\n====END====")
-    conn.close()
-
 
 if __name__ == "__main__":
     while True:
-        print('\n                 欢迎使用数据统计程序\n')
+        print('\n                     欢迎使用数据统计程序\n')
         print('===================================================================')
-        print('*  1.导入数据                                                       *')
-        print('*  2.查询原始答题数据                                                *')
-        print('*  3.查询总体统计信息                                                *')
-        print('*  4.查询答题排名统计                                                *')
-        print('*  99.清空数据                                                     *')
-        print('*  0.退出                                                         *')
-        print('*                                                                 *')
-        print('*                                             Version:1.0         *')
-        print('*                                        Create by Huanghaiyang   *')
+        print('*   1.导入数据                                                       ')
+        print('*   2.查询原始答题数据                                                ')
+        print('*   3.查询总体统计信息                                                ')
+        print('*   4.查询答题排名统计                                                ')
+        print('*   99.清空数据                                                     ')
+        print('*   0.退出                                                          ')
+        print('*                                                                  ')
+        print('*                                               Version:1.0        ')
+        print('*                                          Create by Huanghaiyang  ')
         print('===================================================================')
         print('\n')
         print('请输入命令编号')
@@ -235,26 +270,3 @@ if __name__ == "__main__":
             break
         else:
             print('输入错误，请重新输入：\n')
-
-'''
-#显示学生名单里的信息
-def show( filename):
-   conn = sqlite3.connect( filename)
-   c = conn.cursor()
-   print("\nThe %s information is as follows:" % filename)
-
-   cursor = c.execute("SELECT code, name, Chinese, Mathematic, English from TB_STUDENTS")
-   for row in cursor:
-      print("CODE = ", row[0])
-      print("NAME = ", row[1])
-      print("Chinese = ", row[2])
-      print("Mathematic = ", row[3])
-      print("English = ", row[4], "\n")
-
-   print("\n\t\tEND")
-   conn.close()
-
-path = input("Please enter the excel file's name:")
-importData(path)
-show("students.db")
-'''
